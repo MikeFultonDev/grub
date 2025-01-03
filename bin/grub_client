@@ -31,6 +31,7 @@ Note:\n\
 reset_head()
 {
   commit=$1
+  active_origin_url=$2
 
   # switch back to original before commit if changes made
   if [ $commit -eq 1 ]; then
@@ -39,6 +40,13 @@ reset_head()
       echo "Problems trying to reset ${active_branch} to undo dummy 'commit'. Use git log to see what happened." >&2
       exit 4
     fi
+  fi
+
+  # switch back to origin url that was active before build
+  git config remote.origin.url "${active_origin_url}"
+  if [ $? -gt 0 ]; then
+    echo "Problems trying to update remote.origin.url to ${active_origin_url}" >&2
+    exit 4
   fi
 }
 
@@ -97,6 +105,12 @@ client_root=$(cd "${client_root}" > /dev/null 2>&1 && pwd -P)
 
 vecho "Start:" $(date)
 seconds_start=$(date '+%s')
+
+active_origin_url=$(git config --get remote.origin.url)
+if [ "${active_origin_url}" = '' ]; then
+  echo "Unable to retrieve current remote origin url" >&2
+  exit 4
+fi
 
 url=$(git config --get "remote.${server}_${repo}.url")
 if [ "${url}" = '' ]; then
@@ -173,7 +187,7 @@ if [ $? -gt 0 ]; then
   ssh "${server}" mkdir -p "${server_root}/${repo} && cd ${server_root}/${repo} && ${remote_oef_dir}/git init && ${remote_oef_dir}/git config --local receive.denyCurrentBranch updateInstead"
   git remote set-branches "${server}_${repo}" "${active_branch}" >/dev/null
   if [ $? -gt 1 ]; then
-    reset_head ${commit}
+    reset_head ${commit} "${active_origin_url}"
     exit 4
   fi
 fi
@@ -183,19 +197,19 @@ fi
 #
 vecho "Synchronize changes from ${client_root} to ${server}"
 
-git push --force --set-upstream "${server}_${repo}" >/dev/null 2>/tmp/err
+git push --force-with-lease --set-upstream "${server}_${repo}" >/dev/null 2>/tmp/err
 if [ $? -gt 1 ]; then
   echo "Unable to push to remote - try to set up repository ${repo} on ${server_root}"
   ssh "${server}" mkdir -p "${server_root}/${repo} && cd ${server_root}/${repo} && ${remote_oef_dir}/git init && ${remote_oef_dir}/git config --local receive.denyCurrentBranch updateInstead"
   if [ $? -gt 0 ]; then
     echo "Failed to push to remote repo: ${server}_${repo} and attempt to create repository on server failed." >&2
-    reset_head ${commit}
+    reset_head ${commit} "${active_origin_url}"
     exit 4
   fi
   git push --force --set-upstream "${server}_${repo}" >/dev/null 2>/tmp/err
   if [ $? -gt 1 ]; then
     echo "Unable to push to ${server}_${repo}." >&2
-    reset_head ${commit}
+    reset_head ${commit} "${active_origin_url}"
     exit 4
   fi
 fi
@@ -240,7 +254,7 @@ echo "Errors downloaded to ${bld_err}"
 err=$(cat ${bld_err})
 echo "${err}" >&2
 
-reset_head ${commit}
+reset_head ${commit} "${active_origin_url}"
 
 seconds_reset=$(date '+%s')
 
