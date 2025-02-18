@@ -1,5 +1,16 @@
 #!/bin/sh
 
+convert_if_required()
+{
+  file="${1}"
+
+  file_cp=$(/bin/ls -T "${file}" | awk ' { print $2; }')
+  if [ "${file_cp}" != "ISO8859-1" ]; then
+    txt=$(iconv -f "${file_cp}" -t "ISO8859-1" < "${file}" )
+    echo "${txt}" >"${file}"
+    chtag -tcISO8859-1 "${file}"
+  fi
+}
 #
 # This script requires tight hand-shaking with grub_client
 # for parameter passing from the client to the server
@@ -39,3 +50,5 @@ export _TAG_REDIR_OUT=txt
 # can then download the output
 #
 bash "${MYDIR}/grub_server.bash" "${server_root}" "${repo}" "${active_branch}" >"${bld_out}" 2>"${bld_err}"
+convert_if_required "${bld_out}"
+convert_if_required "${bld_err}"
