@@ -8,6 +8,7 @@ syntax()
 Usage: grub_client [options] <client root> <server root> <server> <repo> <server build tool> <server Open Enterprise Foundation (OEF) dir>\n\
 Options:\n\
   -v | --verbose : print verbose output\n\
+  -vv | --veryverbose : print verbose output and trace the script\n\
   -h | --help    : print this usage information\n\
 Example:\n\
   To run a git remote user build, synchronizing the git repo asmdio under \$HOME/Documents/Development\n\
@@ -62,13 +63,17 @@ vecho()
   fi
 }
 
-#set -x
-
-if [ "$1" = "-v" ] || [ "$1" = "verbose" ]; then
+if [ "$1" = "-v" ] || [ "$1" = "--verbose" ]; then
   verbose=True
   shift 1
 else
   verbose=False
+fi
+
+if [ "$1" = "-vv" ] || [ "$1" = "--veryverbose" ]; then
+  verbose=True
+  set -x
+  shift 1
 fi
 
 client_root=$1
@@ -180,7 +185,7 @@ if [ $? -gt 0 ]; then
   echo "Set up repository ${repo} on ${server_root}"
   ssh "${server}" mkdir -p "${server_root}/${repo} && cd ${server_root}/${repo} && ${remote_oef_dir}/git init && ${remote_oef_dir}/git config --local receive.denyCurrentBranch updateInstead"
   git remote set-branches "${server}_${repo}" "${active_branch}" >/dev/null
-  if [ $? -gt 1 ]; then
+  if [ $? -gt 0 ]; then
     reset_head ${commit} "${active_origin_url}"
     exit 4
   fi
@@ -204,7 +209,7 @@ fi
 vecho "Synchronize changes from ${client_root} to ${server}"
 
 git push --force-with-lease --set-upstream "${server}_${repo}" >/dev/null 2>/tmp/err
-if [ $? -gt 1 ]; then
+if [ $? -gt 0 ]; then
   echo "Unable to push to remote - try to set up repository ${repo} on ${server_root}"
   ssh "${server}" mkdir -p "${server_root}/${repo} && cd ${server_root}/${repo} && ${remote_oef_dir}/git init && ${remote_oef_dir}/git config --local receive.denyCurrentBranch updateInstead"
   if [ $? -gt 0 ]; then
@@ -213,7 +218,7 @@ if [ $? -gt 1 ]; then
     exit 4
   fi
   git push --force --set-upstream "${server}_${repo}" >/dev/null 2>/tmp/err
-  if [ $? -gt 1 ]; then
+  if [ $? -gt 0 ]; then
     echo "Unable to push to ${server}_${repo}." >&2
     reset_head ${commit} "${active_origin_url}"
     exit 4
