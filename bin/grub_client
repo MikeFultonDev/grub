@@ -210,7 +210,7 @@ vecho "Synchronize changes from ${client_root} to ${server}"
 
 git push --force-with-lease --set-upstream "${server}_${repo}" >/dev/null 2>/tmp/err
 if [ $? -gt 0 ]; then
-  echo "Unable to push to remote - try to set up repository ${repo} on ${server_root}"
+  echo "Unable to push to remote - try to set up repository ${repo} on ${server_root}."
   ssh "${server}" mkdir -p "${server_root}/${repo} && cd ${server_root}/${repo} && ${remote_oef_dir}/git init && ${remote_oef_dir}/git config --local receive.denyCurrentBranch updateInstead"
   if [ $? -gt 0 ]; then
     echo "Failed to push to remote repo: ${server}_${repo} and attempt to create repository on server failed." >&2
@@ -219,7 +219,7 @@ if [ $? -gt 0 ]; then
   fi
   git push --force --set-upstream "${server}_${repo}" >/dev/null 2>/tmp/err
   if [ $? -gt 0 ]; then
-    echo "Unable to push to ${server}_${repo}." >&2
+    echo "Unable to push to ${server}_${repo}. Check if you have updated files on server ${server} under directory ${server_root}/${repo}." >&2
     reset_head ${commit} "${active_origin_url}"
     exit 4
   fi
